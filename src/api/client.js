@@ -1,9 +1,8 @@
 const API_URL = (
-  import.meta.env.VITE_API_URL || 'https://task-mart-backend.onrender.com/api'
+  import.meta.env.VITE_API_URL || 'https://takora-backend.onrender.com/api'
 ).replace(/\/$/, '');
 
 console.log('CURRENT API URL:', API_URL);
-
 const TOKEN_KEYS = [
   'takoraToken',
   'token',
