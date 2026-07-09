@@ -61,7 +61,7 @@ export default function Documents() {
       setFileInputKey(Date.now());
       setForm({ title: '', category: 'SOP', description: '', department: 'All' });
       await load();
-      setMsg(res.message || 'Document uploaded permanently to AWS S3');
+      setMsg(res.message || 'Document uploaded');
     } catch (err) {
       setMsg(err.message);
     } finally {
@@ -113,7 +113,6 @@ export default function Documents() {
       <div className="pageTitle">
         <div>
           <h2>Document Center</h2>
-          <p>Upload documents and images permanently using AWS S3.</p>
         </div>
       </div>
 
