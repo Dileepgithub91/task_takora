@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
 
 const blank = {
   title: '',
@@ -20,6 +21,9 @@ const pretty = value => String(value || '')
   .replace(/([a-z])([A-Z])/g, '$1 $2')
   .replace(/[_-]+/g, ' ')
   .replace(/\b\w/g, c => c.toUpperCase());
+const sortUsersAlpha = (list = []) =>
+  [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
+
 
 const safe = value => value || '—';
 const formatDate = value => value ? new Date(value).toLocaleString() : '—';
@@ -51,7 +55,7 @@ export default function Tickets() {
     ]);
 
     setTickets(ticketRes.tickets || []);
-    setUsers(userRes.users || []);
+    setUsers(sortUsersAlpha(userRes.users || []));
   }
 
   useEffect(() => {
@@ -129,6 +133,11 @@ export default function Tickets() {
     user?.role === 'admin' ||
     String(ticket.createdBy?._id || ticket.createdBy) === String(user?._id)
   );
+
+
+  const sortedTickets = useMemo(() => [...tickets].sort(byCreatedDesc), [tickets]);
+  const ticketPagination = usePagination(sortedTickets, { initialPageSize: 10, resetKey: tickets.length });
+  const paginatedTickets = ticketPagination.pageItems;
 
   return (
     <section className="page">
@@ -270,7 +279,7 @@ export default function Tickets() {
             </tr>
           </thead>
           <tbody>
-            {tickets.map(ticket => (
+            {paginatedTickets.map(ticket => (
               <tr key={ticket._id}>
                 <td>{ticket.ticketNo}</td>
                 <td><b>{ticket.title}</b><p>{ticket.description}</p></td>
@@ -290,6 +299,7 @@ export default function Tickets() {
             ))}
           </tbody>
         </table>
+        <Pagination {...ticketPagination} />
       </div>
     </section>
   );

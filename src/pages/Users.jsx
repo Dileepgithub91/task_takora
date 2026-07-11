@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
 
 const blank = {
   name: '',
@@ -59,18 +60,27 @@ export default function Users() {
 
   const visibleUsers = useMemo(
     () =>
-      users.filter(u => {
-        const text = `${u.name || ''} ${u.email || ''} ${u.employeeId || ''} ${
-          u.department || ''
-        } ${u.designation || ''}`.toLowerCase();
+      users
+        .filter(u => {
+          const text = `${u.name || ''} ${u.email || ''} ${u.employeeId || ''} ${
+            u.department || ''
+          } ${u.designation || ''}`.toLowerCase();
 
-        return (
-          (!search || text.includes(search.toLowerCase())) &&
-          (!roleFilter || u.role === roleFilter)
-        );
-      }),
+          return (
+            (!search || text.includes(search.toLowerCase())) &&
+            (!roleFilter || u.role === roleFilter)
+          );
+        })
+        .sort(byCreatedDesc),
     [users, search, roleFilter]
   );
+
+  const userPagination = usePagination(visibleUsers, {
+    initialPageSize: 6,
+    resetKey: `${search}|${roleFilter}`,
+    pageSizeOptions: [6, 12, 24, 48]
+  });
+  const paginatedUsers = userPagination.pageItems;
 
   function edit(u) {
     setEditing(u._id);
@@ -378,7 +388,7 @@ export default function Users() {
       </div>
 
       <div className="teamGrid">
-        {visibleUsers.map(member => (
+        {paginatedUsers.map(member => (
           <article className="teamCard" key={member._id}>
             <div className="teamTop">
               <div className="avatarCircle">
@@ -439,6 +449,8 @@ export default function Users() {
           </article>
         ))}
       </div>
+
+      <Pagination {...userPagination} />
 
       {visibleUsers.length === 0 && <div className="card emptyState">No Team Members Found.</div>}
     </section>

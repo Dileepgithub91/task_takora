@@ -1373,3 +1373,129 @@ input[type='file'] {
     height: 66px;
   }
 }
+
+/* Final Filter + Pagination UI Polish */
+.filters.taskFilters {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, .85fr) minmax(180px, .85fr) minmax(190px, .9fr) 170px !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+
+.filters.taskFilters .filterBtn,
+.filters .filterBtn,
+button.filterBtn {
+  height: 52px !important;
+  width: 100% !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
+  color: #fff !important;
+  box-shadow: 0 14px 26px rgba(37, 99, 235, .24) !important;
+}
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(135deg, #fff, #f8fbff);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.paginationInfo {
+  color: #64748b;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.paginationInfo b {
+  color: #0f172a;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.paginationControls select {
+  width: auto;
+  min-width: 120px;
+  height: 42px;
+  border-radius: 14px;
+  padding: 8px 12px;
+  font-weight: 900;
+}
+
+.paginationControls button {
+  min-width: 72px;
+  height: 42px;
+  padding: 8px 12px;
+  border-radius: 14px;
+}
+
+.paginationControls button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.paginationPage {
+  min-width: 94px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 1000;
+  color: #334155;
+  background: #eef2ff;
+  border-radius: 999px;
+  padding: 10px 12px;
+}
+
+.tableWrap .paginationBar {
+  margin: 0;
+}
+
+.cardsGrid + .paginationBar,
+.teamGrid + .paginationBar,
+.calendarGrid + .paginationBar {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  margin-top: 4px;
+}
+
+@media (max-width: 1320px) {
+  .filters.taskFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .filters.taskFilters .filterBtn {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .filters.taskFilters {
+    grid-template-columns: 1fr !important;
+  }
+
+  .paginationBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .paginationControls {
+    justify-content: stretch;
+  }
+
+  .paginationControls select,
+  .paginationControls button,
+  .paginationPage {
+    flex: 1 1 130px;
+    width: 100%;
+  }
+}

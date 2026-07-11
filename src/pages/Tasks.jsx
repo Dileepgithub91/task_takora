@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, download } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
 
 const emptyForm = { title: '', description: '', assignedTo: '', priority: '', department: '', category: '', status: '' };
 const columns = ['todo', 'inProgress', 'review', 'completed', 'overdue'];
@@ -11,6 +12,9 @@ const isClosed = task => ['adminApproved', 'managerApproved'].includes(task.appr
 const canSubmit = task => !isClosed(task) && task.status === 'completed' && task.approvalStatus !== 'submitted';
 const slaMap = { urgent: '1 Official Hour', high: '2 Official Hours', medium: '4 Official Hours', low: '6 Official Hours' };
 const pretty = value => String(value || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const sortUsersAlpha = (list = []) =>
+  [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
+
 
 export default function Tasks() {
   const { user } = useAuth();
@@ -37,8 +41,8 @@ export default function Tasks() {
     if (canSearchEmployees) requests.push(api('/users'));
     const [t, assignable, scoped] = await Promise.all(requests);
     setTasks(t.tasks || []);
-    setUsers(assignable.users || []);
-    setFilterUsers(scoped?.users || []);
+    setUsers(sortUsersAlpha(assignable.users || []));
+    setFilterUsers(sortUsersAlpha(scoped?.users || []));
   }
 
   useEffect(() => { load().catch(err => setMessage(err.message)); }, [user?.role]);
@@ -166,7 +170,13 @@ export default function Tasks() {
     finally { setImporting(false); }
   }
 
-  const grouped = useMemo(() => columns.map(c => ({ c, items: tasks.filter(t => t.status === c) })), [tasks]);
+  const sortedTasks = useMemo(() => [...tasks].sort(byCreatedDesc), [tasks]);
+  const taskPagination = usePagination(sortedTasks, {
+    initialPageSize: 10,
+    resetKey: `${filters.search}|${filters.status}|${filters.priority}|${filters.assignedTo}|${view}`
+  });
+  const paginatedTasks = taskPagination.pageItems;
+  const grouped = useMemo(() => columns.map(c => ({ c, items: sortedTasks.filter(t => t.status === c) })), [sortedTasks]);
 
   function renderComments(t) {
     const comments = t.comments || [];
@@ -254,8 +264,8 @@ export default function Tasks() {
       <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
       <button className="primary" disabled={saving}>{saving ? 'Saving...' : (editing ? 'Update Task' : 'Create Task')}</button>{editing && <button type="button" className="secondary" onClick={() => { setEditing(null); setForm(emptyForm); }}>Cancel</button>}
     </form>
-    <div className="filters card"><input placeholder="Search Task" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /><select value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}><option value="">All Status</option>{columns.map(c => <option key={c} value={c}>{pretty(c)}</option>)}</select><select value={filters.priority} onChange={e => setFilters({ ...filters, priority: e.target.value })}><option value="">All Priority</option>{priorities.map(p => <option key={p} value={p}>{pretty(p)}</option>)}</select>{canSearchEmployees && <select value={filters.assignedTo} onChange={e => setFilters({ ...filters, assignedTo: e.target.value })}><option value="">All Employees</option>{filterUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select>}<button onClick={reload}>Apply Filter</button></div>
+    <div className="filters card taskFilters"><input placeholder="Search Task" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /><select value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}><option value="">All Status</option>{columns.map(c => <option key={c} value={c}>{pretty(c)}</option>)}</select><select value={filters.priority} onChange={e => setFilters({ ...filters, priority: e.target.value })}><option value="">All Priority</option>{priorities.map(p => <option key={p} value={p}>{pretty(p)}</option>)}</select>{canSearchEmployees && <select value={filters.assignedTo} onChange={e => setFilters({ ...filters, assignedTo: e.target.value })}><option value="">All Employees</option>{filterUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select>}<button type="button" className="primary filterBtn" onClick={reload}>Apply Filter</button></div>
     {view === 'kanban' ? <div className="kanban">{grouped.map(g => <div className="kanCol" key={g.c}><h3>{pretty(g.c)}</h3>{g.items.map(t => <article className={`taskMini ${t.status === 'overdue' ? 'taskOverdue' : ''}`} key={t._id}><b>{t.title}</b><small>{t.assignedTo?.name || '—'} • Due {new Date(t.dueDate).toLocaleString()}</small><span className={`pill ${t.priority}`}>{pretty(t.priority)} / {slaMap[t.priority]}</span><select className={`statusSelect status-${t.status || 'todo'}`} value={t.status} disabled={isClosed(t)} onChange={e => updateStatus(t._id, e.target.value)}>{columns.map(c => <option key={c} value={c}>{pretty(c)}</option>)}</select>{!isClosed(t) && <button onClick={() => openEdit(t)}>Edit Task</button>}{canSubmit(t) && <button onClick={() => submit(t._id)}>Submit</button>}{renderExtensions(t)}{renderTaskFiles(t)}{renderComments(t)}</article>)}</div>)}</div> :
-      <div className="tableWrap"><table><thead><tr><th>Task</th><th>Assigned Employee</th><th>Status</th><th>Priority SLA</th><th>Official Due</th><th>Approval</th><th>Actions</th></tr></thead><tbody>{tasks.map(t => <tr className={rowClass(t)} key={t._id}><td><b>{t.title}</b><p>{t.description}</p><small>{t.department} • {t.category}</small></td>{employeeCell(t)}{statusCell(t)}<td><span className={`pill ${t.priority}`}>{pretty(t.priority)} • {slaMap[t.priority]}</span></td><td>{new Date(t.dueDate).toLocaleString()}</td><td>{pretty(t.approvalStatus)}</td>{renderTaskActions(t)}</tr>)}</tbody></table></div>}
+      <div className="tableWrap"><table><thead><tr><th>Task</th><th>Assigned Employee</th><th>Status</th><th>Priority SLA</th><th>Official Due</th><th>Approval</th><th>Actions</th></tr></thead><tbody>{paginatedTasks.map(t => <tr className={rowClass(t)} key={t._id}><td><b>{t.title}</b><p>{t.description}</p><small>{t.department} • {t.category}</small></td>{employeeCell(t)}{statusCell(t)}<td><span className={`pill ${t.priority}`}>{pretty(t.priority)} • {slaMap[t.priority]}</span></td><td>{new Date(t.dueDate).toLocaleString()}</td><td>{pretty(t.approvalStatus)}</td>{renderTaskActions(t)}</tr>)}</tbody></table><Pagination {...taskPagination} /></div>}
   </section>;
 }

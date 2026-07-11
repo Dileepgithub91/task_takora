@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
+import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
 
 const categories = ['SOP', 'Product Rules', 'Vendor Agreement', 'Invoice', 'Screenshot', 'Company Document', 'Other'];
 
@@ -27,6 +28,14 @@ export default function Documents() {
   });
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const sortedDocs = useMemo(() => [...docs].sort(byCreatedDesc), [docs]);
+  const documentPagination = usePagination(sortedDocs, {
+    initialPageSize: 8,
+    resetKey: docs.length,
+    pageSizeOptions: [8, 16, 32, 64]
+  });
+  const paginatedDocs = documentPagination.pageItems;
 
   async function load() {
     const r = await api('/documents');
@@ -60,8 +69,9 @@ export default function Documents() {
       setFile(null);
       setFileInputKey(Date.now());
       setForm({ title: '', category: 'SOP', description: '', department: 'All' });
-      await load();
-      setMsg(res.message || 'Document uploaded');
+      if (res.document) setDocs(previous => [res.document, ...previous]);
+      else await load();
+      setMsg(res.message || 'Document uploaded permanently to AWS S3');
     } catch (err) {
       setMsg(err.message);
     } finally {
@@ -101,7 +111,7 @@ export default function Documents() {
 
     try {
       await api(`/documents/${id}`, { method: 'DELETE' });
-      await load();
+      setDocs(previous => previous.filter(item => item._id !== id));
       setMsg('Document deleted');
     } catch (err) {
       setMsg(err.message);
@@ -113,6 +123,7 @@ export default function Documents() {
       <div className="pageTitle">
         <div>
           <h2>Document Center</h2>
+          <p>Upload documents and images permanently using AWS S3.</p>
         </div>
       </div>
 
@@ -158,7 +169,7 @@ export default function Documents() {
       </form>
 
       <div className="cardsGrid">
-        {docs.map(d => (
+        {paginatedDocs.map(d => (
           <article className="card" key={d._id}>
             <h3>{d.title}</h3>
             <p>{d.category} • {d.department}</p>
@@ -182,6 +193,8 @@ export default function Documents() {
           </article>
         ))}
       </div>
+
+      <Pagination {...documentPagination} />
 
       {docs.length === 0 && <div className="card emptyState">No Documents Found.</div>}
     </section>
