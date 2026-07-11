@@ -54,7 +54,7 @@ export default function Pagination({
   totalItems,
   pageSizeOptions = [5, 10, 20, 50]
 }) {
-  if (!totalItems || totalItems <= pageSizeOptions[0]) return null;
+  if (!totalItems || totalItems <= pageSize) return null;
 
   const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(totalItems, page * pageSize);

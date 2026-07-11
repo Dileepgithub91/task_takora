@@ -1499,3 +1499,18 @@ button.filterBtn {
     width: 100%;
   }
 }
+
+
+/* Calendar task/ticket filter and pagination visibility */
+.calendarFilters select:first-child {
+  font-weight: 900;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.filters.card.calendarFilters + .paginationBar {
+  margin: 16px 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
