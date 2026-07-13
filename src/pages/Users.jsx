@@ -3,7 +3,11 @@ import { Eye, EyeOff } from 'lucide-react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
+import SearchableSelect from '../components/SearchableSelect.jsx';
 
+const roleValues = ['admin', 'manager', 'teamLead', 'employee', 'support', 'auditor'];
+const statusValues = ['active', 'inactive'];
+const workStatusValues = ['available', 'busy', 'onLeave', 'offline'];
 const blank = {
   name: '',
   email: '',
@@ -25,6 +29,8 @@ const pretty = value =>
     .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
+
+const option = (value, label = null, subLabel = '') => ({ value, label: label || pretty(value), subLabel });
 
 function avatarText(name = '') {
   return (
@@ -81,6 +87,12 @@ export default function Users() {
     pageSizeOptions: [6, 12, 24, 48]
   });
   const paginatedUsers = userPagination.pageItems;
+  const roleOptions = useMemo(() => roleValues.map(r => option(r)), []);
+  const roleFilterOptions = useMemo(() => [option('', 'All Roles'), ...roleValues.map(r => option(r))], []);
+  const statusOptions = useMemo(() => statusValues.map(v => option(v)), []);
+  const workStatusOptions = useMemo(() => workStatusValues.map(v => option(v)), []);
+  const managerOptions = useMemo(() => [option('', 'Reporting Manager'), ...users.filter(u => u._id !== editing).map(u => option(u._id, u.name, `${pretty(u.role)} • ${u.department || 'No Department'}`))], [users, editing]);
+
 
   function edit(u) {
     setEditing(u._id);
@@ -291,60 +303,38 @@ export default function Users() {
           </button>
         </div>
 
-        <select
-          name="takora_employee_role"
+        <SearchableSelect
+          className="teamFormSelect"
+          placeholder="Select Role"
           value={form.role || ''}
-          autoComplete="off"
-          onChange={e => setForm({ ...form, role: e.target.value })}
+          options={roleOptions}
+          onChange={value => setForm({ ...form, role: value })}
           required
-        >
-          <option value="">Select Role</option>
-          {['admin', 'manager', 'teamLead', 'employee', 'support', 'auditor'].map(r => (
-            <option key={r} value={r}>
-              {pretty(r)}
-            </option>
-          ))}
-        </select>
+        />
 
-        <select
-          name="takora_employee_reporting_manager"
+        <SearchableSelect
+          className="teamFormSelect"
+          placeholder="Reporting Manager"
           value={form.reportingManager || ''}
-          autoComplete="off"
-          onChange={e => setForm({ ...form, reportingManager: e.target.value })}
-        >
-          <option value="">Reporting Manager</option>
-          {users
-            .filter(u => u._id !== editing)
-            .map(u => (
-              <option key={u._id} value={u._id}>
-                {u.name} - {pretty(u.role)}
-              </option>
-            ))}
-        </select>
+          options={managerOptions}
+          onChange={value => setForm({ ...form, reportingManager: value })}
+        />
 
-        <select
-          name="takora_employee_status"
+        <SearchableSelect
+          className="teamFormSelect"
+          placeholder="Status"
           value={form.status || ''}
-          autoComplete="off"
-          onChange={e => setForm({ ...form, status: e.target.value })}
-        >
-          <option value="">Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+          options={statusOptions}
+          onChange={value => setForm({ ...form, status: value })}
+        />
 
-        <select
-          name="takora_employee_work_status"
+        <SearchableSelect
+          className="teamFormSelect"
+          placeholder="Work Status"
           value={form.workStatus || ''}
-          autoComplete="off"
-          onChange={e => setForm({ ...form, workStatus: e.target.value })}
-        >
-          <option value="">Work Status</option>
-          <option value="available">Available</option>
-          <option value="busy">Busy</option>
-          <option value="onLeave">On Leave</option>
-          <option value="offline">Offline</option>
-        </select>
+          options={workStatusOptions}
+          onChange={value => setForm({ ...form, workStatus: value })}
+        />
 
         <button className="primary" disabled={saving}>{saving ? 'Saving...' : (editing ? 'Update Employee' : 'Add Team Member')}</button>
 
@@ -372,19 +362,12 @@ export default function Users() {
           onChange={e => setSearch(e.target.value)}
         />
 
-        <select
-          name="takora_employee_role_filter"
+        <SearchableSelect
+          placeholder="All Roles"
           value={roleFilter}
-          autoComplete="off"
-          onChange={e => setRoleFilter(e.target.value)}
-        >
-          <option value="">All Roles</option>
-          {['admin', 'manager', 'teamLead', 'employee', 'support', 'auditor'].map(r => (
-            <option key={r} value={r}>
-              {pretty(r)}
-            </option>
-          ))}
-        </select>
+          options={roleFilterOptions}
+          onChange={value => setRoleFilter(value)}
+        />
       </div>
 
       <div className="teamGrid">

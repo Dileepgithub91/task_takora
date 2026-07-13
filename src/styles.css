@@ -1514,3 +1514,325 @@ button.filterBtn {
   border-radius: 22px;
   box-shadow: var(--shadow);
 }
+
+/* Super Final: Fast Filter Layout + Full Report Graph */
+.filters.smartFilters,
+.filters.ticketFilters,
+.filters.taskFilters.smartFilters {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, .75fr) minmax(150px, .75fr) minmax(160px, .85fr) minmax(180px, 1fr) 150px 150px 170px !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.filters.smartFilters input,
+.filters.smartFilters select,
+.filters.smartFilters button {
+  height: 54px !important;
+}
+
+.filters.smartFilters .filterBtn {
+  min-width: 160px;
+  white-space: nowrap;
+}
+
+.employeeFilterInput,
+.filters input[list] {
+  background: #fff;
+}
+
+.empGraphScroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0 14px;
+}
+
+.allEmployeesGraph {
+  min-width: max-content;
+  align-items: flex-end;
+}
+
+.chartTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.chartTitleRow span {
+  color: #64748b;
+  font-weight: 900;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.empCol small {
+  display: block;
+  width: 92px;
+  min-height: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.importPanel .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1500px) {
+  .filters.smartFilters,
+  .filters.ticketFilters,
+  .filters.taskFilters.smartFilters {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .filters.smartFilters,
+  .filters.ticketFilters,
+  .filters.taskFilters.smartFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .filters.smartFilters .filterBtn {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .filters.smartFilters,
+  .filters.ticketFilters,
+  .filters.taskFilters.smartFilters {
+    grid-template-columns: 1fr !important;
+  }
+  .importPanel .actions {
+    justify-content: stretch;
+  }
+  .importPanel .actions > * {
+    width: 100%;
+  }
+}
+
+/* Fast searchable dropdowns used in task and ticket dashboards */
+.searchSelect {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.searchSelect input {
+  width: 100%;
+  padding-right: 44px;
+}
+.searchSelectToggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  box-shadow: none;
+  z-index: 2;
+}
+.searchSelectToggle:hover {
+  transform: translateY(-50%);
+  background: #f1f5f9;
+}
+.searchSelectMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 999;
+  max-height: 310px;
+  overflow-y: auto;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, .18);
+  padding: 6px;
+}
+.searchSelectOption {
+  width: 100%;
+  display: grid;
+  justify-content: stretch;
+  text-align: left;
+  gap: 3px;
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  padding: 10px 12px;
+  box-shadow: none;
+  white-space: normal;
+}
+.searchSelectOption:hover,
+.searchSelectOption.selected {
+  background: #eef2ff;
+  color: #1d4ed8;
+  transform: none;
+}
+.searchSelectOption b {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.searchSelectOption span,
+.searchSelectEmpty {
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+  line-height: 1.25;
+}
+.searchSelectEmpty {
+  padding: 12px;
+}
+.statusSearch .searchSelectMenu {
+  min-width: 190px;
+}
+.filters.smartFilters,
+.filters.taskFilters.smartFilters,
+.filters.ticketFilters {
+  grid-template-columns: minmax(180px,1.2fr) minmax(140px,.8fr) minmax(140px,.8fr) minmax(150px,.9fr) minmax(180px,1fr) minmax(135px,.7fr) minmax(135px,.7fr) minmax(150px,.8fr) !important;
+  align-items: start !important;
+}
+.filters.smartFilters .filterBtn,
+.filters.ticketFilters .filterBtn {
+  height: 48px;
+  width: 100%;
+}
+.formGrid .searchSelect,
+.filters .searchSelect {
+  min-width: 0;
+}
+.taskActions .searchSelect {
+  min-width: 150px;
+}
+.taskActions .extensionBox .searchSelectMenu {
+  position: relative;
+  top: 4px;
+}
+@media (max-width: 1400px) {
+  .filters.smartFilters,
+  .filters.taskFilters.smartFilters,
+  .filters.ticketFilters {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 900px) {
+  .filters.smartFilters,
+  .filters.taskFilters.smartFilters,
+  .filters.ticketFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 640px) {
+  .filters.smartFilters,
+  .filters.taskFilters.smartFilters,
+  .filters.ticketFilters,
+  .formGrid {
+    grid-template-columns: 1fr !important;
+  }
+  .searchSelectMenu {
+    max-height: 260px;
+  }
+}
+
+/* Ultra fast searchable filters - type directly without deleting placeholder text */
+.searchSelect input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .10);
+}
+.searchSelect input::selection {
+  background: #bfdbfe;
+}
+.searchSelectClear {
+  position: absolute;
+  right: 42px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  box-shadow: none;
+  font-size: 20px;
+  line-height: 1;
+  z-index: 3;
+}
+.searchSelectClear:hover {
+  transform: translateY(-50%);
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.searchSelectOption.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.searchSelectOption.selected {
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  color: #ffffff;
+}
+.searchSelectOption.selected span,
+.searchSelectOption.selected b {
+  color: #ffffff;
+}
+.dashboardFilters,
+.reportFilters {
+  grid-template-columns: minmax(220px, 280px) minmax(240px, 1fr) minmax(160px, 190px) !important;
+  align-items: center !important;
+}
+.dashboardFilters .filterBtn,
+.reportFilters .filterBtn {
+  height: 54px !important;
+}
+.calendarFilters.smartFilters {
+  grid-template-columns: minmax(180px, .95fr) minmax(200px, 1.1fr) minmax(220px, 1.1fr) minmax(160px, .8fr) minmax(145px, .7fr) minmax(145px, .7fr) minmax(160px, .75fr) !important;
+  align-items: center !important;
+}
+.teamFilters .searchSelect,
+.teamMemberForm .searchSelect,
+.formGrid .searchSelect,
+.filters .searchSelect {
+  height: auto;
+}
+.teamMemberForm .searchSelect input,
+.formGrid .searchSelect input,
+.filters .searchSelect input {
+  min-height: 48px;
+}
+@media (max-width: 1200px) {
+  .dashboardFilters,
+  .reportFilters,
+  .calendarFilters.smartFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 640px) {
+  .dashboardFilters,
+  .reportFilters,
+  .calendarFilters.smartFilters {
+    grid-template-columns: 1fr !important;
+  }
+  .searchSelectMenu {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    top: auto;
+    bottom: 18px;
+    max-height: 55vh;
+    border-radius: 22px;
+  }
+}

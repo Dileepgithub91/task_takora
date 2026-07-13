@@ -3,6 +3,7 @@ const API_URL = (
 ).replace(/\/$/, '');
 
 console.log('CURRENT API URL:', API_URL);
+
 const TOKEN_KEYS = [
   'takoraToken',
   'token',

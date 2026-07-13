@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, download } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
+import SearchableSelect from '../components/SearchableSelect.jsx';
 
 const emptyForm = { title: '', description: '', assignedTo: '', priority: '', department: '', category: '', status: '' };
 const columns = ['todo', 'inProgress', 'review', 'completed', 'overdue'];
@@ -12,17 +13,16 @@ const isClosed = task => ['adminApproved', 'managerApproved'].includes(task.appr
 const canSubmit = task => !isClosed(task) && task.status === 'completed' && task.approvalStatus !== 'submitted';
 const slaMap = { urgent: '1 Official Hour', high: '2 Official Hours', medium: '4 Official Hours', low: '6 Official Hours' };
 const pretty = value => String(value || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-const formatDateTime = value => value ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
-const sortUsersAlpha = (list = []) =>
-  [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
-
+const formatDateTime = value => value ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' }) : '—';
+const sortUsersAlpha = (list = []) => [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', { sensitivity: 'base' }));
+const userOption = u => ({ value: u._id, label: u.name || 'Unnamed User', subLabel: `${pretty(u.role)} • ${u.department || 'No Department'}${u.email ? ` • ${u.email}` : ''}` });
+const option = (value, label = pretty(value), subLabel = '') => ({ value, label, subLabel });
 
 export default function Tasks() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
-  const [filterUsers, setFilterUsers] = useState([]);
-  const [filters, setFilters] = useState({ status: '', priority: '', assignedTo: '', search: '' });
+  const [filters, setFilters] = useState({ status: '', priority: '', assignedTo: '', employeeSearch: '', search: '', createdFrom: '', createdTo: '' });
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(null);
   const [commentText, setCommentText] = useState({});
@@ -31,23 +31,47 @@ export default function Tasks() {
   const [view, setView] = useState('table');
   const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const managementRole = canSeeManagementActions(user?.role);
   const canSearchEmployees = ['admin', 'manager'].includes(user?.role);
 
-  async function load() {
-    const cleanFilters = { ...filters };
-    if (!canSearchEmployees) delete cleanFilters.assignedTo;
-    const params = new URLSearchParams(Object.entries(cleanFilters).filter(([, v]) => v));
-    const requests = [api(`/tasks?${params}`), api('/users/assignable')];
-    if (canSearchEmployees) requests.push(api('/users'));
-    const [t, assignable, scoped] = await Promise.all(requests);
-    setTasks(t.tasks || []);
-    setUsers(sortUsersAlpha(assignable.users || []));
-    setFilterUsers(sortUsersAlpha(scoped?.users || []));
+  const userOptions = useMemo(() => sortUsersAlpha(users).map(userOption), [users]);
+  const filterUserOptions = useMemo(() => [option('', 'All Employees'), ...userOptions], [userOptions]);
+  const statusOptions = useMemo(() => [option('', 'All Status'), ...columns.map(c => option(c))], []);
+  const formStatusOptions = useMemo(() => columns.map(c => option(c)), []);
+  const priorityOptions = useMemo(() => [option('', 'All Priority'), ...priorities.map(p => option(p, pretty(p), slaMap[p]))], []);
+  const formPriorityOptions = useMemo(() => priorities.map(p => option(p, pretty(p), slaMap[p])), []);
+  const departmentOptions = useMemo(() => {
+    const values = [...new Set(users.map(u => u.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return values.map(v => option(v, v));
+  }, [users]);
+
+  async function loadUsers() {
+    const res = await api('/users/assignable');
+    setUsers(sortUsersAlpha(res.users || []));
   }
 
-  useEffect(() => { load().catch(err => setMessage(err.message)); }, [user?.role]);
-  async function reload() { await load(); }
+  async function loadTasks() {
+    const params = new URLSearchParams(
+      Object.entries({ ...filters, limit: 200 }).filter(([, v]) => v)
+    );
+    const res = await api(`/tasks?${params}`);
+    setTasks(res.tasks || []);
+  }
+
+  useEffect(() => {
+    loadUsers().catch(err => setMessage(err.message));
+  }, [user?.role]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(true);
+      loadTasks().catch(err => setMessage(err.message)).finally(() => setLoading(false));
+    }, 140);
+    return () => clearTimeout(timer);
+  }, [user?.role, filters.status, filters.priority, filters.assignedTo, filters.employeeSearch, filters.search, filters.createdFrom, filters.createdTo]);
+
+  async function reload() { await loadTasks(); }
 
   function openEdit(task) {
     setEditing(task._id);
@@ -72,10 +96,10 @@ export default function Tasks() {
       let res;
       if (editing) {
         res = await api(`/tasks/${editing}`, { method: 'PUT', body: JSON.stringify(payload) });
-        if (res.task) setTasks(previous => previous.map(item => item._id === editing ? res.task : item));
+        if (res.task) setTasks(previous => previous.map(item => item._id === editing ? res.task : item).sort(byCreatedDesc));
       } else {
         res = await api('/tasks', { method: 'POST', body: JSON.stringify(payload) });
-        if (res.task) setTasks(previous => [res.task, ...previous]);
+        if (res.task) setTasks(previous => [res.task, ...previous].sort(byCreatedDesc));
       }
       setForm(emptyForm);
       setEditing(null);
@@ -86,13 +110,17 @@ export default function Tasks() {
 
   async function remove(id) {
     if (!managementRole) return;
-    if (confirm('Delete This Task?')) { await api(`/tasks/${id}`, { method: 'DELETE' }); await reload(); }
+    if (confirm('Delete This Task?')) {
+      await api(`/tasks/${id}`, { method: 'DELETE' });
+      setTasks(previous => previous.filter(item => item._id !== id));
+    }
   }
 
   async function updateStatus(id, s) {
     try {
-      await api(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: s }) });
-      await reload();
+      const res = await api(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: s }) });
+      if (res.task) setTasks(previous => previous.map(item => item._id === id ? res.task : item).sort(byCreatedDesc));
+      else await reload();
       setMessage(s === 'inProgress' ? 'Task Started And Timer Auto Started' : 'Task Status Updated');
     } catch (err) { setMessage(err.message); }
   }
@@ -140,21 +168,13 @@ export default function Tasks() {
   async function openAttachment(file) {
     try {
       let url = file.downloadUrl || file.path;
-
       if (!url && file.fileKey) {
         const data = await api(`/files/signed-url?key=${encodeURIComponent(file.fileKey)}`);
         url = data.url;
       }
-
-      if (!url) {
-        setMessage('File URL not found. Re-upload this old file to S3.');
-        return;
-      }
-
+      if (!url) return setMessage('File URL not found. Re-upload this old file to S3.');
       window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      setMessage(err.message || 'Unable to open file');
-    }
+    } catch (err) { setMessage(err.message || 'Unable to open file'); }
   }
 
   async function bulkImport(file) {
@@ -174,7 +194,7 @@ export default function Tasks() {
   const sortedTasks = useMemo(() => [...tasks].sort(byCreatedDesc), [tasks]);
   const taskPagination = usePagination(sortedTasks, {
     initialPageSize: 10,
-    resetKey: `${filters.search}|${filters.status}|${filters.priority}|${filters.assignedTo}|${view}`
+    resetKey: `${filters.search}|${filters.status}|${filters.priority}|${filters.assignedTo}|${filters.employeeSearch}|${filters.createdFrom}|${filters.createdTo}|${view}`
   });
   const paginatedTasks = taskPagination.pageItems;
   const grouped = useMemo(() => columns.map(c => ({ c, items: sortedTasks.filter(t => t.status === c) })), [sortedTasks]);
@@ -187,7 +207,6 @@ export default function Tasks() {
   function renderTaskFiles(t) {
     const files = t.attachments || [];
     if (!files.length) return null;
-
     return <div className="commentList">{files.map(file => (
       <button type="button" className="commentItem" key={file._id || file.fileKey || file.filename} onClick={() => openAttachment(file)}>
         📎 {file.originalName || file.filename || 'Open File'}
@@ -208,14 +227,13 @@ export default function Tasks() {
       {managementRole && <><button onClick={() => remove(t._id)}>Delete</button>{canSubmit(t) && <button onClick={() => submit(t._id)}>Submit</button>}{t.approvalStatus === 'submitted' && <><button onClick={() => approve(t._id)}>Approve</button><button onClick={() => reject(t._id)}>Reject</button></>}<input type="file" onChange={e => e.target.files[0] && uploadFile(t._id, e.target.files[0])} /></>}
       {!managementRole && canSubmit(t) && <button onClick={() => submit(t._id)}>Submit For Approval</button>}
       {!closed && <button onClick={() => setExtension({ ...extension, [t._id]: { ...(extension[t._id] || {}), open: !extension[t._id]?.open } })}>Extend Request</button>}
-      {extension[t._id]?.open && <div className="extensionBox"><select value={extension[t._id]?.requestedHours || ''} onChange={e => setExtension({ ...extension, [t._id]: { ...(extension[t._id] || {}), requestedHours: e.target.value } })}><option value="">Extra Official Hours</option>{extraHours.map(h => <option key={h} value={h}>{h} Hour{h === 1 ? '' : 's'}</option>)}</select><input placeholder="Reason" value={extension[t._id]?.reason || ''} onChange={e => setExtension({ ...extension, [t._id]: { ...(extension[t._id] || {}), reason: e.target.value } })} /><button onClick={() => requestExt(t._id)}>Send Request</button>{extension[t._id]?.error && <small className="errorMini">{extension[t._id].error}</small>}</div>}
+      {extension[t._id]?.open && <div className="extensionBox"><SearchableSelect value={extension[t._id]?.requestedHours || ''} placeholder="Extra Official Hours" options={[option('', 'Extra Official Hours'), ...extraHours.map(h => option(h, `${h} Hour${h === 1 ? '' : 's'}`))]} onChange={value => setExtension({ ...extension, [t._id]: { ...(extension[t._id] || {}), requestedHours: value } })} /><input placeholder="Reason" value={extension[t._id]?.reason || ''} onChange={e => setExtension({ ...extension, [t._id]: { ...(extension[t._id] || {}), reason: e.target.value } })} /><button onClick={() => requestExt(t._id)}>Send Request</button>{extension[t._id]?.error && <small className="errorMini">{extension[t._id].error}</small>}</div>}
       {renderExtensions(t)}
       {renderTaskFiles(t)}
       <div className="commentBox"><input placeholder="Comment" value={commentText[t._id] || ''} onChange={e => setCommentText({ ...commentText, [t._id]: e.target.value })} /><button onClick={() => comment(t._id)}>Comment</button></div>
       {renderComments(t)}
     </td>;
   }
-
 
   function employeeCell(t) {
     const assigned = t.assignedTo || {};
@@ -228,18 +246,14 @@ export default function Tasks() {
 
   function statusCell(t) {
     return <td className="statusCell">
-      <select
-        className={`statusSelect status-${t.status || 'todo'}`}
+      <SearchableSelect
+        className={`statusSearch status-${t.status || 'todo'}`}
         value={t.status || ''}
         disabled={isClosed(t)}
-        onChange={e => updateStatus(t._id, e.target.value)}
-      >
-        <option value="todo">To Do</option>
-        <option value="inProgress">In Progress</option>
-        <option value="review">Review</option>
-        <option value="completed">Completed</option>
-        <option value="overdue">Overdue</option>
-      </select>
+        placeholder="Status"
+        options={formStatusOptions}
+        onChange={value => value && updateStatus(t._id, value)}
+      />
       {isClosed(t) && <small className="muted">Closed After Approval</small>}
     </td>;
   }
@@ -248,25 +262,33 @@ export default function Tasks() {
     return `taskRow ${t.status === 'overdue' ? 'taskOverdue' : ''} ${isClosed(t) ? 'taskClosed' : ''} priority-${t.priority}`;
   }
 
-  return <section className="page"><div className="pageTitle"><div><h2>Task Assignment</h2>
-  {/* <p>Priority Based Official SLA: Urgent 1h, High 2h, Medium 4h, Low 6h. Office Time 9:30 AM To 6:00 PM, Lunch 1:00 PM To 2:00 PM, Sunday And National Holidays Excluded.</p> */}
-  </div><button className="secondary" onClick={() => setView(view === 'table' ? 'kanban' : 'table')}>{view === 'table' ? 'Kanban Board' : 'Table View'}</button></div>
+  return <section className="page">
+    <div className="pageTitle"><div><h2>Task Assignment</h2></div><button className="secondary" onClick={() => setView(view === 'table' ? 'kanban' : 'table')}>{view === 'table' ? 'Kanban Board' : 'Table View'}</button></div>
     {message && <p className="info">{message}</p>}
-    <div className="importPanel card"><div><h3>Import Previous Tasks From Excel</h3>
-    {/* <p>Columns: Title, Description, AssignedEmail, Priority, Category, Department. Deadline Is Calculated Automatically From Priority SLA.</p> */}
-    </div><div className="actions"><button className="secondary" onClick={() => download('/tasks/import-template', 'takora-task-import-template.xlsx')}>Download Template</button><label className="fileButton">{importing ? 'Importing...' : 'Upload Excel'}<input type="file" accept=".xlsx,.xls,.csv" onChange={e => bulkImport(e.target.files?.[0])} disabled={importing} /></label></div></div>
+    <div className="importPanel card"><div><h3>Import Previous Tasks From Excel</h3></div><div className="actions"><button className="secondary" onClick={() => download('/tasks/import-template', 'takora-task-import-template.xlsx')}>Download Template</button><label className="fileButton">{importing ? 'Importing...' : 'Upload Excel'}<input type="file" accept=".xlsx,.xls,.csv" onChange={e => bulkImport(e.target.files?.[0])} disabled={importing} /></label></div></div>
+
     <form className="formGrid card taskComposer" onSubmit={save}>
       <input placeholder="Task Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
-      <select value={form.assignedTo} onChange={e => setForm({ ...form, assignedTo: e.target.value })} required><option value="">Assign To Employee / Team Lead / Manager / Admin</option>{users.map(u => <option key={u._id} value={u._id}>{u.name} - {pretty(u.role)} - {u.department}</option>)}</select>
-      <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} required><option value="">Select Priority SLA</option>{priorities.map(p => <option key={p} value={p}>{pretty(p)} - {slaMap[p]}</option>)}</select>
-      <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="">Status</option>{columns.map(c => <option key={c} value={c}>{pretty(c)}</option>)}</select>
-      <input placeholder="Department" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} />
+      <SearchableSelect placeholder="Assign To Employee / Team Lead / Manager / Admin" value={form.assignedTo} options={userOptions} onChange={value => setForm({ ...form, assignedTo: value })} required />
+      <SearchableSelect placeholder="Select Priority SLA" value={form.priority} options={formPriorityOptions} onChange={value => setForm({ ...form, priority: value })} required />
+      <SearchableSelect placeholder="Status" value={form.status} options={formStatusOptions} onChange={value => setForm({ ...form, status: value })} />
+      <SearchableSelect placeholder="Department" value={form.department} options={departmentOptions} onTextChange={text => setForm(previous => ({ ...previous, department: text }))} onChange={value => setForm({ ...form, department: value })} />
       <input placeholder="Category / SLA Type" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} />
       <textarea placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
       <button className="primary" disabled={saving}>{saving ? 'Saving...' : (editing ? 'Update Task' : 'Create Task')}</button>{editing && <button type="button" className="secondary" onClick={() => { setEditing(null); setForm(emptyForm); }}>Cancel</button>}
     </form>
-    <div className="filters card taskFilters"><input placeholder="Search Task" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} /><select value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })}><option value="">All Status</option>{columns.map(c => <option key={c} value={c}>{pretty(c)}</option>)}</select><select value={filters.priority} onChange={e => setFilters({ ...filters, priority: e.target.value })}><option value="">All Priority</option>{priorities.map(p => <option key={p} value={p}>{pretty(p)}</option>)}</select>{canSearchEmployees && <select value={filters.assignedTo} onChange={e => setFilters({ ...filters, assignedTo: e.target.value })}><option value="">All Employees</option>{filterUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}</select>}<button type="button" className="primary filterBtn" onClick={reload}>Apply Filter</button></div>
-    {view === 'kanban' ? <div className="kanban">{grouped.map(g => <div className="kanCol" key={g.c}><h3>{pretty(g.c)}</h3>{g.items.map(t => <article className={`taskMini ${t.status === 'overdue' ? 'taskOverdue' : ''}`} key={t._id}><b>{t.title}</b><small>{t.assignedTo?.name || '—'} • Due {formatDateTime(t.dueDate)}</small><span className={`pill ${t.priority}`}>{pretty(t.priority)} / {slaMap[t.priority]}</span><select className={`statusSelect status-${t.status || 'todo'}`} value={t.status} disabled={isClosed(t)} onChange={e => updateStatus(t._id, e.target.value)}>{columns.map(c => <option key={c} value={c}>{pretty(c)}</option>)}</select>{!isClosed(t) && <button onClick={() => openEdit(t)}>Edit Task</button>}{canSubmit(t) && <button onClick={() => submit(t._id)}>Submit</button>}{renderExtensions(t)}{renderTaskFiles(t)}{renderComments(t)}</article>)}</div>)}</div> :
+
+    <div className="filters card taskFilters smartFilters">
+      <input placeholder="Search Task" value={filters.search} onChange={e => setFilters({ ...filters, search: e.target.value })} />
+      <SearchableSelect placeholder="All Status" value={filters.status} options={statusOptions} onChange={value => setFilters({ ...filters, status: value })} />
+      <SearchableSelect placeholder="All Priority" value={filters.priority} options={priorityOptions} onChange={value => setFilters({ ...filters, priority: value })} />
+      {canSearchEmployees && <SearchableSelect placeholder="Type Employee Name" value={filters.assignedTo} options={filterUserOptions} onTextChange={text => setFilters(previous => ({ ...previous, employeeSearch: text, assignedTo: '' }))} onChange={(value, opt) => setFilters({ ...filters, assignedTo: value, employeeSearch: value ? (opt?.label || '') : '' })} />}
+      <input type="date" value={filters.createdFrom} onChange={e => setFilters({ ...filters, createdFrom: e.target.value })} title="Created From" />
+      <input type="date" value={filters.createdTo} onChange={e => setFilters({ ...filters, createdTo: e.target.value })} title="Created To" />
+      <button type="button" className="primary filterBtn" onClick={reload}>{loading ? 'Loading...' : 'Apply Filter'}</button>
+    </div>
+
+    {view === 'kanban' ? <div className="kanban">{grouped.map(g => <div className="kanCol" key={g.c}><h3>{pretty(g.c)}</h3>{g.items.map(t => <article className={`taskMini ${t.status === 'overdue' ? 'taskOverdue' : ''}`} key={t._id}><b>{t.title}</b><small>{t.assignedTo?.name || '—'} • Due {formatDateTime(t.dueDate)}</small><span className={`pill ${t.priority}`}>{pretty(t.priority)} / {slaMap[t.priority]}</span><SearchableSelect className={`statusSearch status-${t.status || 'todo'}`} value={t.status} disabled={isClosed(t)} options={formStatusOptions} onChange={value => value && updateStatus(t._id, value)} />{!isClosed(t) && <button onClick={() => openEdit(t)}>Edit Task</button>}{canSubmit(t) && <button onClick={() => submit(t._id)}>Submit</button>}{renderExtensions(t)}{renderTaskFiles(t)}{renderComments(t)}</article>)}</div>)}</div> :
       <div className="tableWrap"><table><thead><tr><th>Task</th><th>Created Date & Time</th><th>Assigned Employee</th><th>Status</th><th>Priority SLA</th><th>Official Due</th><th>Approval</th><th>Actions</th></tr></thead><tbody>{paginatedTasks.map(t => <tr className={rowClass(t)} key={t._id}><td><b>{t.title}</b><p>{t.description}</p><small>{t.department} • {t.category}</small></td><td>{formatDateTime(t.createdAt)}</td>{employeeCell(t)}{statusCell(t)}<td><span className={`pill ${t.priority}`}>{pretty(t.priority)} • {slaMap[t.priority]}</span></td><td>{formatDateTime(t.dueDate)}</td><td>{pretty(t.approvalStatus)}</td>{renderTaskActions(t)}</tr>)}</tbody></table><Pagination {...taskPagination} /></div>}
   </section>;
 }

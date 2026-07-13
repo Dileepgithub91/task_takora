@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client.js';
 import Pagination, { byCreatedDesc, usePagination } from '../components/Pagination.jsx';
+import SearchableSelect from '../components/SearchableSelect.jsx';
 
 const categories = ['SOP', 'Product Rules', 'Vendor Agreement', 'Invoice', 'Screenshot', 'Company Document', 'Other'];
+const option = value => ({ value, label: value });
 
 function formatSize(size = 0) {
   const bytes = Number(size || 0);
@@ -123,7 +125,6 @@ export default function Documents() {
       <div className="pageTitle">
         <div>
           <h2>Document Center</h2>
-          <p>Upload documents and images permanently using AWS S3.</p>
         </div>
       </div>
 
@@ -136,14 +137,12 @@ export default function Documents() {
           onChange={e => setForm({ ...form, title: e.target.value })}
         />
 
-        <select
+        <SearchableSelect
+          placeholder="Document Category"
           value={form.category}
-          onChange={e => setForm({ ...form, category: e.target.value })}
-        >
-          {categories.map(x => (
-            <option key={x}>{x}</option>
-          ))}
-        </select>
+          options={categories.map(option)}
+          onChange={value => setForm({ ...form, category: value })}
+        />
 
         <input
           placeholder="Department"
